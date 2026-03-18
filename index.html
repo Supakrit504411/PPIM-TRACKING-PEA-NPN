@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>PPIM-TRACKING PEA NAKHONPHANOM V1.0</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    :root { --pea-purple: #6c2d91; --pea-gold: #DAA520; --pea-green: #198754; --pea-red: #dc3545; }
+    body { font-family: 'Kanit', sans-serif; background-color: #f4f7f6; font-size: 14px; }
+    .header-img { width: 100%; height: auto; border-radius: 0 0 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .stat-card { background: white; border-radius: 15px; padding: 10px; border-top: 5px solid var(--pea-purple); box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; height: 100%; }
+    .stat-val { font-size: 1.4rem; font-weight: 600; margin-bottom: 0; }
+    .stat-label { font-size: 0.75rem; color: #777; }
+    .stat-pct { font-size: 0.75rem; font-weight: 600; display: block; margin-top: 2px; }
+    .table-container { background: white; border-radius: 15px; padding: 15px; margin-top: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    #bigTooltip { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.95); color: white; padding: 20px; border-radius: 15px; z-index: 9999; display: none; text-align: center; border: 2px solid var(--pea-gold); min-width: 250px; pointer-events: none; }
+    #loginPage { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; z-index: 10000; display: flex; align-items: center; justify-content: center; }
+    .dist-tag { display: block; font-size: 10px; color: var(--pea-purple); font-weight: bold; }
+    .status-select { font-size: 12px; border-radius: 8px; padding: 4px; border: 1px solid #ddd; width: 100%; }
+    .swal2-container { z-index: 20000 !important; }
+    #reportCaptureArea { padding: 20px; background: white; border-radius: 10px; }
+  </style>
+</head>
+<body>
+
+<div id="bigTooltip"></div>
+
+<div id="loginPage">
+  <div class="container text-center" style="max-width: 380px;">
+    <img id="loginLogo" src="" width="130" class="mb-4">
+    <h4 class="fw-bold mb-4" style="color: var(--pea-purple);"> <br>⛑ PPIM-TRACKING ⛑ <br> PEA NAKHONPHANOM </h4>
+<div class="pea-warning-box">
+      ⚠️ ข้อมูลเฉพาะภายใน กฟภ. (PEA) <br>
+      ห้ามส่งต่อหรือเผยแพร่ให้บุคคลภายนอก
+    </div>
+
+    <input type="password" id="passInput" class="form-control mb-3 text-center shadow-sm" style="height: 65px; font-size: 26px; border-radius: 18px;" placeholder="รหัสผ่าน" onkeyup="if(event.keyCode===13) checkAccess()">
+    <button class="btn btn-primary w-100 py-3 shadow-lg" style="background: var(--pea-purple); border: none; border-radius: 18px; font-weight: 600;" onclick="checkAccess()">เข้าสู่ระบบ</button>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+  <img src="https://sabuyservice.pea.co.th/_next/image?url=https%3A%2F%2Fsabuyservice.pea.co.th%2Ffiles%2Fcontents%2FBanner%2F20241021030738-SS-banner_03A_0.jpg&w=1920&q=100" class="header-img">
+  <div class="container-fluid py-3">
+    <div class="row g-2 mb-3">
+      <div class="col-4"><div class="stat-card"><div class="stat-label">ทั้งหมด</div><div class="stat-val" id="statTotal">0</div><span class="stat-pct text-muted">100%</span></div></div>
+      <div class="col-4"><div class="stat-card" style="border-top-color: var(--pea-green);"><div class="stat-label">เป็น E-Meter</div><div class="stat-val text-success" id="statDone">0</div><span class="stat-pct text-success" id="pctDone">0%</span></div></div>
+      <div class="col-4"><div class="stat-card" style="border-top-color: var(--pea-red);"><div class="stat-label">รอดำเนินการ</div><div class="stat-val text-danger" id="statWait">0</div><span class="stat-pct text-danger" id="pctWait">0%</span></div></div>
+    </div>
+    <div class="row g-2 mb-3">
+      <div class="col-4"><select id="fArea" class="form-select shadow-sm" onchange="runFilters()"><option value="">ทุกพื้นที่</option></select></div>
+      <div class="col-4"><select id="fStatus" class="form-select shadow-sm" onchange="runFilters()"><option value="">ทุกสถานะ</option></select></div>
+      <div class="col-4"><button class="btn btn-warning w-100 shadow-sm fw-bold" onclick="openSummaryModal()">📊 สรุปข้อมูล</button></div>
+    </div>
+    <div class="table-container shadow-sm">
+      <table id="meterTable" class="table table-hover w-100">
+        <thead class="table-light text-center">
+          <tr><th>#</th><th>ชื่อผู้ใช้ไฟฟ้า</th><th>PEA Meter</th><th>พื้นที่</th><th>สถานะ E-Meter</th><th>Meter (ใหม่)</th><th>Note1</th><th>Note2</th><th>นำทาง</th><th>แนบไฟล์</th></tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <footer class="footer text-center py-4 text-muted small">Developed by <strong>PEA Nakhon Phanom</strong> - ผบส.กฟจ.นพ.</footer>
+  </div>
+</div>
+
+<div class="modal fade" id="summaryModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background: var(--pea-purple); color: white;">
+        <h5 class="modal-title">📊 สรุปผลการดำเนินงานรายพื้นที่</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="reportCaptureArea">
+          <h5 class="text-center fw-bold mb-3">รายงานสรุปติดตั้ง E-Meter (กฟจ.นพ.)</h5>
+          <canvas id="summaryChart" style="max-height: 350px;"></canvas>
+          <div id="summaryTableContainer" class="mt-4 table-responsive"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="downloadSummaryImage()">⬇️ ดาวน์โหลดภาพ</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="fileModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content"><div class="modal-body p-0" id="fileContent"></div></div></div></div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  // URL ของ Google Apps Script
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyzZNo5OCSNSTsfdQLEK2T7EqrqN-pig4UML8UfzXj8lGGcnTkYKjh4fyVzGwW8cGPy/exec"; 
+  let table, masterData = [], config = {}, userPos = null, myChart = null;
+
+  $(document).ready(async () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => { userPos = pos.coords; }, err => console.log("GPS Off"));
+    }
+    try {
+      const res = await fetch(`${SCRIPT_URL}?action=getConfig`);
+      config = await res.json();
+      $('#loginLogo').attr('src', config.logoUrl);
+    } catch(e) { console.error("Config Load Error"); }
+  });
+
+  async function checkAccess() {
+    if($('#passInput').val() === config.passCode) {
+      $('#loginPage').fadeOut(); $('#app').fadeIn(); loadData();
+    } else { Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง', 'error'); }
+  }
+
+  async function loadData() {
+    Swal.fire({ title: '🤖 กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+      const res = await fetch(`${SCRIPT_URL}?action=getData`);
+      const data = await res.json();
+      data.shift();
+      masterData = data;
+      renderTable(data);
+      populateFilters(data);
+      Swal.close();
+    } catch(e) { Swal.fire('Error', 'เชื่อมต่อฐานข้อมูลล้มเหลว', 'error'); }
+  }
+
+  function renderTable(data) {
+    if ($.fn.DataTable.isDataTable('#meterTable')) $('#meterTable').DataTable().destroy();
+    let html = '';
+    data.forEach((row, i) => {
+      const statusValue = row[7] ? row[7].trim() : "รอดำเนินการ";
+      const isDone = statusValue === 'เป็น E-Meter แล้ว';
+      
+      // ส่วนสำคัญ: เราเก็บค่า status ไว้ใน data-status ของ td เพื่อให้กรองง่ายและแม่นยำ
+      const statusHtml = isDone ? 
+        `<span class="badge bg-success w-100 py-2">เป็น E-Meter แล้ว</span>` :
+        `<select class="status-select" onchange="updateStatus(${i}, this.value)">
+            <option value="รอดำเนินการ" ${statusValue === 'รอดำเนินการ' ? 'selected' : ''}>รอดำเนินการ</option>
+            <option value="เป็น E-Meter แล้ว">เป็น E-Meter แล้ว</option>
+         </select>`;
+
+      const note1 = (row[9] && row[9] !== '-' && row[9] !== '') ? `<span style="cursor:help" onmouseover="showTip('${row[9]}')" onmouseout="hideTip()">🔍</span>` : '';
+      const note2 = (row[10] && row[10] !== '-' && row[10] !== '') ? `<span style="cursor:help" onmouseover="showTip('${row[10]}')" onmouseout="hideTip()">🔍</span>` : '';
+      
+      let distTag = "";
+      if(userPos && row[4] && row[4].includes(',')) {
+        const [lat, lon] = row[4].split(',').map(Number);
+        const R = 6371;
+        const dLat = (lat - userPos.latitude) * (Math.PI/180);
+        const dLon = (lon - userPos.longitude) * (Math.PI/180);
+        const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(userPos.latitude*(Math.PI/180))*Math.cos(lat*(Math.PI/180))*Math.sin(dLon/2)*Math.sin(dLon/2);
+        const d = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+        const distStr = d < 1 ? (d * 1000).toFixed(0) + " ม." : d.toFixed(1) + " กม.";
+        distTag = `<span class="dist-tag">ห่าง ${distStr}</span>`;
+      }
+
+      const navBtn = row[4] ? `<button class="btn btn-sm btn-info text-white shadow-sm px-2" onclick="window.open('https://www.google.com/maps?q=${row[4]}','_blank')">📍 ไป${distTag}</button>` : '-';
+      const fileBtn = row[11] ? `<button class="btn btn-sm btn-outline-success" onclick="viewFile('${row[11]}')">📂 ดู</button>` : `<button class="btn btn-sm btn-light border" onclick="document.getElementById('up_${i}').click()">📎</button><input type="file" class="d-none" id="up_${i}" onchange="uploadFile(this, ${i})">`;
+      
+      html += `<tr>
+        <td class="text-center">${i+1}</td>
+        <td class="fw-bold" style="min-width:150px">${row[1]}</td>
+        <td class="text-center">${row[3]}</td>
+        <td class="text-center">${row[6]}</td>
+        <td class="text-center" data-filter="${statusValue}" data-status="${statusValue}">${statusHtml}</td>
+        <td class="text-center text-primary fw-bold">${row[8] || '-'}</td>
+        <td class="text-center">${note1}</td>
+        <td class="text-center">${note2}</td>
+        <td class="text-center">${navBtn}</td>
+        <td class="text-center">${fileBtn}</td>
+      </tr>`;
+    });
+    $('#tableBody').html(html);
+
+    // ตั้งค่า DataTables
+    table = $('#meterTable').DataTable({ 
+      scrollX: true, 
+      paging: true, 
+      pageLength: 20, 
+      language: { search: "ค้นหา:" },
+      columnDefs: [
+        { targets: 4, type: 'string' } // บังคับให้คอลัมน์สถานะเป็น string
+      ]
+    });
+    
+    table.on('draw.dt search.dt', updateStats);
+    updateStats();
+  }
+
+  function updateStats() {
+    let t = 0, d = 0, w = 0;
+    table.rows({ search: 'applied' }).every(function() {
+      const node = this.node();
+      const statusValue = $(node).find('td:eq(4)').attr('data-status') || "";
+      t++;
+      if (statusValue.includes('เป็น E-Meter แล้ว')) d++; else w++;
+    });
+    
+    $('#statTotal').text(t.toLocaleString()); 
+    $('#statDone').text(d.toLocaleString()); 
+    $('#statWait').text(w.toLocaleString());
+    const pctD = t > 0 ? ((d / t) * 100).toFixed(1) : 0;
+    const pctW = t > 0 ? ((w / t) * 100).toFixed(1) : 0;
+    $('#pctDone').text(pctD + '%');
+    $('#pctWait').text(pctW + '%');
+  }
+
+  function runFilters() {
+    const areaVal = $('#fArea').val();
+    const statusVal = $('#fStatus').val();
+
+    // กรองพื้นที่ (คอลัมน์ 3) - ใช้ Exact Match เพื่อกันพื้นที่ชื่อคล้ายกัน
+    table.column(3).search(areaVal ? '^' + areaVal + '$' : '', true, false);
+
+    // กรองสถานะ (คอลัมน์ 4) - ใช้การค้นหาข้อความปกติธรรมดา ไม่ต้องใช้ Regex ซับซ้อน
+    // เพราะเราใส่ data-filter ไว้ใน <td> แล้ว DataTables จะมองเห็นข้อความนั้นก่อน HTML
+    table.column(4).search(statusVal);
+
+    table.draw();
+  }
+
+  function openSummaryModal() {
+    const summary = {};
+    table.rows({ search: 'applied' }).every(function() {
+      const node = this.node();
+      const area = $(node).find('td:eq(3)').text() || "ไม่ระบุ";
+      const status = $(node).find('td:eq(4)').attr('data-status') || "";
+      if(!summary[area]) summary[area] = { total:0, done:0, wait:0 };
+      summary[area].total++;
+      if(status.includes('เป็น E-Meter แล้ว')) summary[area].done++; else summary[area].wait++;
+    });
+
+    const labels = Object.keys(summary).sort();
+    if(labels.length === 0) { Swal.fire('ไม่มีข้อมูล', 'ไม่พบข้อมูลสำหรับสรุปผล', 'info'); return; }
+
+    const dataDone = labels.map(l => summary[l].done);
+    const dataWait = labels.map(l => summary[l].wait);
+
+    if (myChart) myChart.destroy();
+    const ctx = document.getElementById('summaryChart').getContext('2d');
+    myChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'เป็น E-Meter แล้ว', data: dataDone, backgroundColor: '#198754' },
+          { label: 'รอดำเนินการ', data: dataWait, backgroundColor: '#dc3545' }
+        ]
+      },
+      options: { responsive: true, scales: { x: { stacked: true }, y: { stacked: true } } }
+    });
+
+    let h = `<table class="table table-sm table-bordered text-center small mt-3">
+      <thead class="table-dark"><tr><th>พื้นที่</th><th>ทั้งหมด</th><th>สำเร็จ</th><th>รอ</th><th>%</th></tr></thead><tbody>`;
+    labels.forEach(l => {
+      const s = summary[l];
+      const pct = ((s.done/s.total)*100).toFixed(1);
+      h += `<tr><td>${l}</td><td>${s.total}</td><td class="text-success fw-bold">${s.done}</td><td class="text-danger">${s.wait}</td><td>${pct}%</td></tr>`;
+    });
+    $('#summaryTableContainer').html(h + '</tbody></table>');
+    new bootstrap.Modal('#summaryModal').show();
+  }
+
+  function downloadSummaryImage() {
+    html2canvas(document.getElementById('reportCaptureArea')).then(canvas => {
+      const link = document.createElement('a');
+      link.download = 'Summary_Report.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+  }
+
+  function populateFilters(data) {
+    const areas = [...new Set(data.map(r => r[6]))].filter(v => v).sort();
+    $('#fArea').html('<option value="">ทุกพื้นที่</option>');
+    areas.forEach(a => $('#fArea').append(new Option(a, a)));
+    
+    // ตั้งค่าตัวเลือกสถานะให้ตรงกับในชีต
+    $('#fStatus').html('<option value="">ทุกสถานะ</option><option value="เป็น E-Meter แล้ว">เป็น E-Meter แล้ว</option><option value="รอดำเนินการ">รอดำเนินการ</option>');
+  }
+
+  async function updateStatus(idx, val) {
+    if(val !== 'เป็น E-Meter แล้ว') return;
+    const confirm = await Swal.fire({ title: 'ยืนยันสถานะ?', text: "เมื่อบันทึกแล้วจะไม่สามารถแก้ไขได้อีก", icon: 'warning', showCancelButton: true });
+    if(confirm.isConfirmed) {
+      Swal.fire({ title: '🤖 กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      try {
+        await fetch(SCRIPT_URL, { 
+          method: 'POST', 
+          body: JSON.stringify({ action: 'updateStatus', rowId: idx + 1, status: val }) 
+        });
+        Swal.fire('สำเร็จ', '', 'success'); loadData();
+      } catch(e) { Swal.fire('Error', 'ไม่สามารถบันทึกได้', 'error'); }
+    } else { loadData(); }
+  }
+
+  function showTip(m) { $('#bigTooltip').html(m).fadeIn(100); }
+  function hideTip() { $('#bigTooltip').hide(); }
+
+  async function uploadFile(input, idx) {
+    if(!input.files[0]) return;
+    Swal.fire({ title: 'อัปโหลด...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        await fetch(SCRIPT_URL, { 
+          method: 'POST', 
+          body: JSON.stringify({ base64: e.target.result, fileName: input.files[0].name, rowId: idx + 1 }) 
+        });
+        Swal.fire('สำเร็จ', '', 'success'); loadData();
+      } catch(e) { Swal.fire('Error', 'อัปโหลดล้มเหลว', 'error'); }
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+
+  function viewFile(url) {
+    const preview = url.replace('/view?usp=drivesdk', '/preview');
+    $('#fileContent').html(`<iframe src="${preview}" width="100%" height="550px" frameborder="0"></iframe>`);
+    new bootstrap.Modal('#fileModal').show();
+  }
+</script>
+</body>
+</html>
